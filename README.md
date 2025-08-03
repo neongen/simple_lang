@@ -87,4 +87,4 @@ cargo run
 ```
 
 ⚠️ **Status: Work in Progress**  
-This project is not finished yet — it is under active development and evolving. 
+This project is not finished yet — it is under development and evolving. 
