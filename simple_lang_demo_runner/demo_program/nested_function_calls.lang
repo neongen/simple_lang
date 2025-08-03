@@ -1,0 +1,39 @@
+// Simple strict syntax - every statement must end with semicolon
+// Type declarations are explicit and required
+// No implicit conversions
+
+main: function -> i32 {
+    // Variable declarations require explicit types
+    message: string = "Hello, World!";
+    count: i32 = 42;
+    
+    // Function calls use explicit syntax
+    print(message);
+    
+    // Arithmetic operations
+    result: i32 = add_numbers(count, 8);
+    print_number(result);
+    
+    // Control flow with explicit blocks
+    if (result > 40) {
+        print("Result is greater than 40");
+    };
+    
+    // Return statement required for non-void functions
+    return 0;
+};
+
+add_numbers: function(a: i32, b: i32) -> i32 {
+    return a + b;
+};
+
+print: function(text: string) -> void {
+    // Built-in system call
+    syscall_write(1, text);
+};
+
+print_number: function(num: i32) -> void {
+    // Convert number to string and print
+    text: string = int_to_string(num);
+    print(text);
+};

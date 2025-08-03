@@ -1,0 +1,13 @@
+main: function() -> i32 {
+    message: string = "Hello, World! Your code belongs to the Entity!";
+    count: i32 = 42;
+    
+    // Display message
+    print(message);
+    
+    // Arithmetic operations
+    result: i32 = count + 8;
+    print_number(result);
+
+    return 0;
+};

@@ -1,0 +1,5 @@
+/target
+simple_lang_demo_runner/target
+.DS_Store
+Cargo.lock
+
