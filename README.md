@@ -84,3 +84,7 @@ Build and Run
 ```bash
 cd simple_lang_demo_runner
 cargo run
+```
+
+⚠️ **Status: Work in Progress**  
+This project is not finished yet — it is under active development and evolving. 
