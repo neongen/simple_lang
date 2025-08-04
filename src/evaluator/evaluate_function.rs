@@ -2,11 +2,16 @@ use crate::ast::function_struct::Function;
 use crate::ast::expression_struct::Expression;
 use crate::ast::statement_struct::Statement;
 use crate::ast::binary_operator_struct::BinaryOperator;
+use crate::ast::environment_struct::Environment;
 
 /// Evaluates a function given the function definition and argument expressions.
 /// Returns the resulting Expression or an error string.
 /// Assumes arguments are already evaluated expressions.
-pub fn evaluate_function(function: &Function, args: Vec<Expression>) -> Result<Expression, String> {
+pub fn evaluate_function<'a>(
+    function: &'a Function,
+    args: Vec<Expression>,
+    outer_env: &Environment<'a>,
+) -> Result<Expression, String> {
     if args.len() != function.params.len() {
         return Err(format!(
             "Expected {} arguments but got {}",
@@ -15,43 +20,43 @@ pub fn evaluate_function(function: &Function, args: Vec<Expression>) -> Result<E
         ));
     }
 
-    // Create initial environment mapping parameter names to argument values.
-    let mut env = Environment::new();
+    // Create new environment inheriting the functions from the outer environment
+    let mut env = Environment::new(outer_env.functions.clone());
+
     for (param, arg) in function.params.iter().zip(args.into_iter()) {
-        env.insert(param.name.clone(), arg);
+        env.insert_variable(param.name.clone(), arg);
     }
 
     evaluate_statements(&function.body, &mut env)
 }
 
-/// Environment stores variable bindings during evaluation.
-type Environment = std::collections::HashMap<String, Expression>;
-
 /// Evaluate a list of statements in order, returning the final expression if a return is encountered.
 /// Returns error if no return statement is found for non-void functions.
-fn evaluate_statements(statements: &[Statement], env: &mut Environment) -> Result<Expression, String> {
+fn evaluate_statements<'a>(
+    statements: &[Statement],
+    env: &mut Environment<'a>,
+) -> Result<Expression, String> {
     for stmt in statements {
         match evaluate_statement(stmt, env)? {
             Some(ret_val) => return Ok(ret_val), // Return statement encountered
             None => continue,
         }
     }
-    // If no return statement found, for non-void functions, this is an error.
     Err("Function did not return a value".to_string())
 }
 
-/// Evaluate a single statement. Returns:
-/// - Ok(Some(Expression)) if a return statement with value was executed.
-/// - Ok(None) otherwise.
-/// - Err on error.
-fn evaluate_statement(stmt: &Statement, env: &mut Environment) -> Result<Option<Expression>, String> {
+/// Evaluate a single statement.
+fn evaluate_statement<'a>(
+    stmt: &Statement,
+    env: &mut Environment<'a>,
+) -> Result<Option<Expression>, String> {
     use crate::ast::statement_struct::Statement::*;
     use crate::ast::expression_struct::Expression;
 
     match stmt {
         VariableDeclaration { name, value, .. } => {
             let val = evaluate_expression(value, env)?;
-            env.insert(name.clone(), val);
+            env.insert_variable(name.clone(), val);
             Ok(None)
         }
 
@@ -90,7 +95,11 @@ fn evaluate_statement(stmt: &Statement, env: &mut Environment) -> Result<Option<
                     }
                 }
 
-                _ => Err(format!("Function call to '{}' not supported in evaluate_function", name)),
+                _ => {
+                    let evaluated_args = evaluate_arguments(args, env)?;
+                    let result = evaluate_function_by_name(name, evaluated_args, env)?;
+                    Ok(Some(result))
+                }
             }
         }
 
@@ -113,33 +122,55 @@ fn evaluate_statement(stmt: &Statement, env: &mut Environment) -> Result<Option<
     }
 }
 
-
 /// Evaluate an expression in the given environment.
-/// Returns the evaluated expression or error.
-fn evaluate_expression(expr: &Expression, env: &Environment) -> Result<Expression, String> {
-    use crate::ast::expression_struct::Expression::*;
-
+pub fn evaluate_expression<'a>(
+    expr: &Expression,
+    env: &Environment<'a>,
+) -> Result<Expression, String> {
     match expr {
-        IntegerLiteral(_) | StringLiteral(_) => Ok(expr.clone()),
-        VariableRef(name) => env
-            .get(name)
-            .cloned()
-            .ok_or_else(|| format!("Undefined variable '{}'", name)),
-        BinaryOp { op, left, right } => {
-            let lval = evaluate_expression(left, env)?;
-            let rval = evaluate_expression(right, env)?;
-            evaluate_binary_op(op, &lval, &rval)
+        Expression::IntegerLiteral(_) | Expression::StringLiteral(_) => Ok(expr.clone()),
+
+        Expression::VariableRef(name) => {
+            env.get(name)
+                .cloned()
+                .ok_or_else(|| format!("Variable '{}' not found", name))
         }
-        FunctionCall { .. } => {
-            // No support for nested function calls in this context
-            Err("Nested function calls are not supported in evaluate_function".to_string())
+
+        Expression::BinaryOp { op, left, right } => {
+            let l_val = evaluate_expression(left, env)?;
+            let r_val = evaluate_expression(right, env)?;
+            evaluate_binary_op(op, &l_val, &r_val)
+        }
+
+        Expression::FunctionCall { name, args } => {
+            let evaluated_args = evaluate_arguments(args, env)?;
+            evaluate_function_by_name(name, evaluated_args, env)
         }
     }
 }
 
-/// Helper to determine if an expression is truthy for control flow.
-/// For integers, 0 is false, non-zero true.
-/// Strings are considered error in condition context.
+/// Evaluates all argument expressions in order.
+fn evaluate_arguments<'a>(
+    args: &[Expression],
+    env: &Environment<'a>,
+) -> Result<Vec<Expression>, String> {
+    args.iter().map(|arg| evaluate_expression(arg, env)).collect()
+}
+
+/// Looks up a function by name and evaluates it with args.
+fn evaluate_function_by_name<'a>(
+    name: &str,
+    args: Vec<Expression>,
+    env: &Environment<'a>,
+) -> Result<Expression, String> {
+    let func = env
+        .get_function(name)
+        .ok_or_else(|| format!("Function '{}' not found", name))?;
+
+    evaluate_function(func, args, env)
+}
+
+/// Helper for truthiness of condition expressions.
 fn is_truthy(expr: &Expression) -> Result<bool, String> {
     match expr {
         Expression::IntegerLiteral(i) => Ok(*i != 0),
@@ -147,11 +178,14 @@ fn is_truthy(expr: &Expression) -> Result<bool, String> {
     }
 }
 
-/// Evaluate a binary operation on two evaluated expressions.
-/// Supports i32 operations only.
-fn evaluate_binary_op(op: &BinaryOperator, left: &Expression, right: &Expression) -> Result<Expression, String> {
-    use crate::ast::binary_operator_struct::BinaryOperator::*;
-    use crate::ast::expression_struct::Expression::IntegerLiteral;
+/// Evaluate binary operation.
+fn evaluate_binary_op(
+    op: &BinaryOperator,
+    left: &Expression,
+    right: &Expression,
+) -> Result<Expression, String> {
+    use BinaryOperator::*;
+    use Expression::IntegerLiteral;
 
     match (left, right) {
         (IntegerLiteral(l), IntegerLiteral(r)) => {
@@ -165,9 +199,9 @@ fn evaluate_binary_op(op: &BinaryOperator, left: &Expression, right: &Expression
                     }
                     l.checked_div(*r).ok_or("Integer overflow on division")?
                 }
-                GreaterThan => return Ok(Expression::IntegerLiteral((l > r) as i32)),
-                LessThan => return Ok(Expression::IntegerLiteral((l < r) as i32)),
-                Equal => return Ok(Expression::IntegerLiteral((l == r) as i32)),
+                GreaterThan => return Ok(IntegerLiteral((l > r) as i32)),
+                LessThan => return Ok(IntegerLiteral((l < r) as i32)),
+                Equal => return Ok(IntegerLiteral((l == r) as i32)),
             };
             Ok(IntegerLiteral(result))
         }

@@ -7,6 +7,7 @@ pub mod ast {
     pub mod parameter_struct;
     pub mod statement_struct;
     pub mod type_struct;
+    pub mod environment_struct;
 }
 
 pub mod parser {

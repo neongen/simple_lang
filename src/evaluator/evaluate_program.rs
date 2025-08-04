@@ -1,33 +1,33 @@
+use std::collections::HashMap;
+
 use crate::ast::program_struct::Program;
-use crate::ast::type_struct::Type;
 use crate::ast::expression_struct::Expression;
 use crate::ast::function_struct::Function;
+use crate::ast::environment_struct::Environment;
 use crate::evaluator::evaluate_function::evaluate_function;
 
 ///// Evaluates the program starting from the `main` function.
 ///// Returns the final i32 return value of `main`, or an error if evaluation fails.
 pub fn evaluate_program(program: &Program) -> Result<i32, String> {
-    // Find the main function
-    let main_fn = find_main_function(program)?;
+    let mut env = Environment {
+        variables: HashMap::new(),
+        functions: program
+            .functions
+            .iter()
+            .map(|f| (f.name.clone(), f))
+            .collect(),
+    };
 
-    // Ensure main has no parameters and returns i32
-    if !main_fn.params.is_empty() {
-        return Err("main function must not take any parameters.".to_string());
-    }
+    let main_fn = env.get_function("main")
+        .ok_or_else(|| "main function not found".to_string())?;
 
-    match main_fn.return_type {
-        Type::I32 => {
-            let result = evaluate_function(main_fn, Vec::new())?;
-
-            match result {
-                Expression::IntegerLiteral(value) => Ok(value),
-                _ => Err("main function did not return an i32 value.".to_string()),
-            }
-        }
-        _ => Err("main function must return i32.".to_string()),
+    let result = evaluate_function(main_fn, vec![], &mut env)?;
+    if let Expression::IntegerLiteral(code) = result {
+        Ok(code)
+    } else {
+        Err("main function did not return an integer".to_string())
     }
 }
-
 
 ///// Finds the `main` function in the program.
 fn find_main_function(program: &Program) -> Result<&Function, String> {
@@ -37,4 +37,3 @@ fn find_main_function(program: &Program) -> Result<&Function, String> {
         .find(|f| f.name == "main")
         .ok_or_else(|| "main function not found.".to_string())
 }
-

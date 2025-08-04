@@ -17,7 +17,7 @@ fn main() {
     };
 
     // Create the full PathBuf first to ensure it lives long enough
-    let full_path: PathBuf = cwd.join("demo_program/hello_world.lang");
+    let full_path: PathBuf = cwd.join("demo_program/nested_function_calls.lang");
 
     // Convert PathBuf to &str
     let file_path = match full_path.to_str() {
