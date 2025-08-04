@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::ast::program_struct::Program;
 use crate::ast::expression_struct::Expression;
-use crate::ast::function_struct::Function;
 use crate::ast::environment_struct::Environment;
 use crate::evaluator::evaluate_function::evaluate_function;
 
@@ -27,13 +26,4 @@ pub fn evaluate_program(program: &Program) -> Result<i32, String> {
     } else {
         Err("main function did not return an integer".to_string())
     }
-}
-
-///// Finds the `main` function in the program.
-fn find_main_function(program: &Program) -> Result<&Function, String> {
-    program
-        .functions
-        .iter()
-        .find(|f| f.name == "main")
-        .ok_or_else(|| "main function not found.".to_string())
 }
