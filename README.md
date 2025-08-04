@@ -63,8 +63,16 @@ It supports:
 
 Run a sample `simple_lang` program using the built-in runner:
 
-hello_world.lang
+nested_function_calls.lang
 ```
+// Simple strict syntax - every statement must end with semicolon
+// Type declarations are explicit and required
+// No implicit conversions
+
+add_numbers: function(a: i32, b: i32) -> i32 {
+    return a + b;
+};
+
 main: function() -> i32 {
     message: string = "Hello, World! Your code belongs to the Entity!";
     count: i32 = 42;
@@ -73,8 +81,16 @@ main: function() -> i32 {
     print(message);
     
     // Arithmetic operations
-    result: i32 = count + 8;
-    print_number(result);
+    
+    // nested function call 
+    result: i32 = add_numbers(count, 8);
+    
+    print(result);
+
+    // Control flow with explicit blocks
+    // if (result > 40) {
+    //     print("Result is greater than 40");
+    // };
 
     return 0;
 };
