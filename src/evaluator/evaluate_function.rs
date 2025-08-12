@@ -1,12 +1,14 @@
-use crate::ast::function_struct::Function;
-use crate::ast::expression_struct::Expression;
-use crate::ast::statement_struct::Statement;
-use crate::ast::binary_operator_struct::BinaryOperator;
-use crate::ast::environment_struct::Environment;
+// Enhanced evaluate_function.rs with proper if statement evaluation
+
+use crate::data_struct::function_struct::Function;
+use crate::data_struct::expression_struct::Expression;
+use crate::data_struct::statement_struct::Statement;
+use crate::data_struct::binary_operator_struct::BinaryOperator;
+use crate::data_struct::environment_struct::Environment;
 
 /// Evaluates a function given the function definition and argument expressions.
 /// Returns the resulting Expression or an error string.
-/// Assumes arguments are already evaluated expressions.
+/// Enhanced with proper if statement evaluation.
 pub fn evaluate_function<'a>(
     function: &'a Function,
     args: Vec<Expression>,
@@ -23,6 +25,7 @@ pub fn evaluate_function<'a>(
     // Create new environment inheriting the functions from the outer environment
     let mut env = Environment::new(outer_env.functions.clone());
 
+    // Bind parameters to arguments
     for (param, arg) in function.params.iter().zip(args.into_iter()) {
         env.insert_variable(param.name.clone(), arg);
     }
@@ -31,7 +34,7 @@ pub fn evaluate_function<'a>(
 }
 
 /// Evaluate a list of statements in order, returning the final expression if a return is encountered.
-/// Returns error if no return statement is found for non-void functions.
+/// Enhanced to handle if statements properly.
 fn evaluate_statements<'a>(
     statements: &[Statement],
     env: &mut Environment<'a>,
@@ -46,21 +49,19 @@ fn evaluate_statements<'a>(
 }
 
 /// Evaluate a single statement.
+/// Enhanced with proper if statement handling.
 fn evaluate_statement<'a>(
     stmt: &Statement,
     env: &mut Environment<'a>,
 ) -> Result<Option<Expression>, String> {
-    use crate::ast::statement_struct::Statement::*;
-    use crate::ast::expression_struct::Expression;
-
     match stmt {
-        VariableDeclaration { name, value, .. } => {
+        Statement::VariableDeclaration { name, value, .. } => {
             let val = evaluate_expression(value, env)?;
             env.insert_variable(name.clone(), val);
             Ok(None)
         }
 
-        FunctionCall { name, args } => {
+        Statement::FunctionCall { name, args } => {
             match name.as_str() {
                 "print" => {
                     if args.len() != 1 {
@@ -72,26 +73,8 @@ fn evaluate_statement<'a>(
                             println!("{}", s);
                             Ok(None)
                         }
-                        Expression::IntegerLiteral(i) => {
-                            println!("{}", i);
-                            Ok(None)
-                        }
-                        _ => Err("print only supports strings and integers".to_string()),
-                    }
-                }
 
-                "print_number" => {
-                    if args.len() != 1 {
-                        return Err("print_number expects one i32 argument".to_string());
-                    }
-                    let val = evaluate_expression(&args[0], env)?;
-                    match val {
-                        Expression::IntegerLiteral(i) => {
-                            let text = i.to_string();
-                            println!("{}", text);
-                            Ok(None)
-                        }
-                        _ => Err("print_number expects an integer".to_string()),
+                        _ => Err("print only supports strings".to_string()),
                     }
                 }
 
@@ -103,19 +86,20 @@ fn evaluate_statement<'a>(
             }
         }
 
-        If { condition, body } => {
+        Statement::If { condition, body } => {
             let cond_val = evaluate_expression(condition, env)?;
             if is_truthy(&cond_val)? {
+                // Execute if body statements
                 for stmt in body {
                     if let Some(ret_val) = evaluate_statement(stmt, env)? {
-                        return Ok(Some(ret_val));
+                        return Ok(Some(ret_val)); // Early return from if block
                     }
                 }
             }
             Ok(None)
         }
 
-        Return { value } => {
+        Statement::Return { value } => {
             let val = evaluate_expression(value, env)?;
             Ok(Some(val))
         }
@@ -123,6 +107,7 @@ fn evaluate_statement<'a>(
 }
 
 /// Evaluate an expression in the given environment.
+/// Enhanced with better error handling and support for all binary operations.
 pub fn evaluate_expression<'a>(
     expr: &Expression,
     env: &Environment<'a>,
@@ -143,8 +128,25 @@ pub fn evaluate_expression<'a>(
         }
 
         Expression::FunctionCall { name, args } => {
-            let evaluated_args = evaluate_arguments(args, env)?;
-            evaluate_function_by_name(name, evaluated_args, env)
+            // Handle built-in functions
+            match name.as_str() {
+                "int_to_string" => {
+                    if args.len() != 1 {
+                        return Err("int_to_string expects exactly one argument".to_string());
+                    }
+                    let val = evaluate_expression(&args[0], env)?;
+                    match val {
+                        Expression::IntegerLiteral(i) => {
+                            Ok(Expression::StringLiteral(i.to_string()))
+                        }
+                        _ => Err("int_to_string expects an integer argument".to_string()),
+                    }
+                }
+                _ => {
+                    let evaluated_args = evaluate_arguments(args, env)?;
+                    evaluate_function_by_name(name, evaluated_args, env)
+                }
+            }
         }
     }
 }
@@ -171,6 +173,9 @@ fn evaluate_function_by_name<'a>(
 }
 
 /// Helper for truthiness of condition expressions.
+/// In simple_lang, only i32 values are considered for truthiness:
+/// - 0 is false
+/// - Any non-zero value is true
 fn is_truthy(expr: &Expression) -> Result<bool, String> {
     match expr {
         Expression::IntegerLiteral(i) => Ok(*i != 0),
@@ -178,7 +183,7 @@ fn is_truthy(expr: &Expression) -> Result<bool, String> {
     }
 }
 
-/// Evaluate binary operation.
+/// Enhanced binary operation evaluation with proper overflow checking.
 fn evaluate_binary_op(
     op: &BinaryOperator,
     left: &Expression,
@@ -199,12 +204,108 @@ fn evaluate_binary_op(
                     }
                     l.checked_div(*r).ok_or("Integer overflow on division")?
                 }
-                GreaterThan => return Ok(IntegerLiteral((l > r) as i32)),
-                LessThan => return Ok(IntegerLiteral((l < r) as i32)),
-                Equal => return Ok(IntegerLiteral((l == r) as i32)),
+                GreaterThan => return Ok(IntegerLiteral(if l > r { 1 } else { 0 })),
+                LessThan => return Ok(IntegerLiteral(if l < r { 1 } else { 0 })),
+                Equal => return Ok(IntegerLiteral(if l == r { 1 } else { 0 })),
             };
             Ok(IntegerLiteral(result))
         }
-        _ => Err("Binary operations only supported on i32 literals".to_string()),
+        // Support string equality comparison
+        (Expression::StringLiteral(l), Expression::StringLiteral(r)) => {
+            match op {
+                Equal => Ok(IntegerLiteral(if l == r { 1 } else { 0 })),
+                _ => Err("Only equality comparison is supported for strings".to_string()),
+            }
+        }
+        _ => Err("Binary operations require compatible types".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data_struct::type_struct::Type;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_evaluate_if_statement_true() {
+        let mut env = Environment::new(HashMap::new());
+        env.insert_variable("x".to_string(), Expression::IntegerLiteral(5));
+
+        let if_stmt = Statement::If {
+            condition: Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::VariableRef("x".to_string())),
+                right: Box::new(Expression::IntegerLiteral(0)),
+            },
+            body: vec![
+                Statement::VariableDeclaration {
+                    name: "result".to_string(),
+                    var_type: Type::I32,
+                    value: Expression::IntegerLiteral(42),
+                }
+            ],
+        };
+
+        let result = evaluate_statement(&if_stmt, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get("result").is_some());
+    }
+
+    #[test]
+    fn test_evaluate_if_statement_false() {
+        let mut env = Environment::new(HashMap::new());
+        env.insert_variable("x".to_string(), Expression::IntegerLiteral(-5));
+
+        let if_stmt = Statement::If {
+            condition: Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::VariableRef("x".to_string())),
+                right: Box::new(Expression::IntegerLiteral(0)),
+            },
+            body: vec![
+                Statement::VariableDeclaration {
+                    name: "result".to_string(),
+                    var_type: Type::I32,
+                    value: Expression::IntegerLiteral(42),
+                }
+            ],
+        };
+
+        let result = evaluate_statement(&if_stmt, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get("result").is_none()); // Should not be executed
+    }
+
+    #[test]
+    fn test_is_truthy() {
+        assert_eq!(is_truthy(&Expression::IntegerLiteral(0)).unwrap(), false);
+        assert_eq!(is_truthy(&Expression::IntegerLiteral(1)).unwrap(), true);
+        assert_eq!(is_truthy(&Expression::IntegerLiteral(-1)).unwrap(), true);
+        assert_eq!(is_truthy(&Expression::IntegerLiteral(42)).unwrap(), true);
+    }
+
+    #[test]
+    fn test_evaluate_comparison_operators() {
+        let greater = evaluate_binary_op(
+            &BinaryOperator::GreaterThan,
+            &Expression::IntegerLiteral(5),
+            &Expression::IntegerLiteral(3)
+        ).unwrap();
+        assert_eq!(greater, Expression::IntegerLiteral(1));
+
+        let less = evaluate_binary_op(
+            &BinaryOperator::LessThan,
+            &Expression::IntegerLiteral(3),
+            &Expression::IntegerLiteral(5)
+        ).unwrap();
+        assert_eq!(less, Expression::IntegerLiteral(1));
+
+        let equal = evaluate_binary_op(
+            &BinaryOperator::Equal,
+            &Expression::IntegerLiteral(5),
+            &Expression::IntegerLiteral(5)
+        ).unwrap();
+        assert_eq!(equal, Expression::IntegerLiteral(1));
     }
 }

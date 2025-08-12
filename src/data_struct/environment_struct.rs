@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use crate::ast::expression_struct::Expression;
-use crate::ast::function_struct::Function;
+use crate::data_struct::expression_struct::Expression;
+use crate::data_struct::function_struct::Function;
 
 /// Environment stores variable bindings during evaluation.
 pub struct Environment<'a> {

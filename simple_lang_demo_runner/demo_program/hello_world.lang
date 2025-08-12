@@ -7,7 +7,7 @@ main: function() -> i32 {
     
     // Arithmetic operations
     result: i32 = count + 8;
-    print(result);
+    print(int_to_string(result));
 
     return 0;
 };

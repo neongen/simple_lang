@@ -1,42 +1,35 @@
-use crate::ast::type_struct::Type;
-use crate::ast::function_struct::Function;
-use crate::ast::parameter_struct::Parameter;
-use crate::parser::parse_statement::parse_statement;
+// Final integrated parse_function.rs that works with your exact code format
 
-///// Parses a function definition from a slice of input lines.
-/////
-///// Expects well-formed syntax like:
-///// `my_func: function(a: i32, b: i32) -> i32 {` followed by body lines and closing `};`
-///// Returns a `Function` AST node or an error message.
+use crate::data_struct::type_struct::Type;
+use crate::data_struct::function_struct::Function;
+use crate::data_struct::parameter_struct::Parameter;
+use crate::data_struct::statement_struct::Statement;
+use crate::parser::parse_statement::{parse_statement, parse_if_statement_multiline};
+
+/// Parses a function definition from a slice of input lines.
+/// Works with your exact code format including multi-line if statements.
 pub fn parse_function(lines: &[&str]) -> Result<Function, String> {
     if lines.is_empty() {
         return Err("Empty function input.".to_string());
     }
 
+    // Parse function header
     let header = lines[0].trim();
     if !header.ends_with('{') {
         return Err("Function header must end with '{'.".to_string());
     }
 
-    // Remove trailing '{' and parse the function signature
     let header_clean = &header[..header.len() - 1].trim_end();
     let (name, params, return_type) = parse_function_signature(header_clean)?;
 
-    // Find the closing "};" line
+    // Verify function ends properly
     if !lines.last().unwrap().trim().eq("};") {
         return Err("Function must end with '};'".to_string());
     }
 
+    // Parse the function body
     let body_lines = &lines[1..lines.len() - 1];
-    let mut body = Vec::new();
-    for &line in body_lines {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let stmt = parse_statement(trimmed)?;
-        body.push(stmt);
-    }
+    let body = parse_function_body_integrated(body_lines)?;
 
     Ok(Function {
         name,
@@ -46,10 +39,40 @@ pub fn parse_function(lines: &[&str]) -> Result<Function, String> {
     })
 }
 
-///// Parses the function signature from a header line like:
-///// `add_numbers: function(a: i32, b: i32) -> i32`
+/// Parse function body with integrated multi-line if statement handling
+fn parse_function_body_integrated(lines: &[&str]) -> Result<Vec<Statement>, String> {
+    let mut body = Vec::new();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i].trim();
+        
+        // Skip empty lines
+        if line.is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // Check if this is the start of a multi-line if statement
+        if line.starts_with("if (") && line.contains(") {") && !line.contains("};") {
+            // This is a multi-line if statement
+            let remaining_lines = &lines[i + 1..];
+            let (if_statement, lines_consumed) = parse_if_statement_multiline(line, remaining_lines)?;
+            body.push(if_statement);
+            i += lines_consumed + 1; // +1 for the if line itself
+        } else {
+            // Regular single-line statement
+            let stmt = parse_statement(line)?;
+            body.push(stmt);
+            i += 1;
+        }
+    }
+
+    Ok(body)
+}
+
+/// Parse function signature from header
 fn parse_function_signature(header: &str) -> Result<(String, Vec<Parameter>, Type), String> {
-    // Split into name and rest
     let parts: Vec<&str> = header.splitn(2, ": function").collect();
     if parts.len() != 2 {
         return Err("Invalid function declaration syntax.".to_string());
@@ -58,7 +81,6 @@ fn parse_function_signature(header: &str) -> Result<(String, Vec<Parameter>, Typ
     let name = parts[0].trim().to_string();
     let signature = parts[1].trim();
 
-    // Extract parameters and return type
     let open_paren = signature.find('(').ok_or("Missing '(' in function signature.")?;
     let close_paren = signature.find(')').ok_or("Missing ')' in function signature.")?;
     let params_str = &signature[open_paren + 1..close_paren];
@@ -88,12 +110,63 @@ fn parse_function_signature(header: &str) -> Result<(String, Vec<Parameter>, Typ
     Ok((name, params, return_type))
 }
 
-///// Parses a type string like "i32", "string", or "void" into a `Type`.
+/// Parse type string
 fn parse_type(s: &str) -> Result<Type, String> {
     match s {
         "i32" => Ok(Type::I32),
         "string" => Ok(Type::String),
         "void" => Ok(Type::Void),
         _ => Err(format!("Unknown type: '{}'", s)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_function_with_multiline_if() {
+        let lines = vec![
+            "check_value: function(num: i32) -> i32 {",
+            "    if (num > 0) {",
+            "        print(\"Number is positive\");",
+            "        print(num);",
+            "    };",
+            "    ",
+            "    return num;",
+            "};"
+        ];
+
+        let result = parse_function(&lines);
+        assert!(result.is_ok(), "Should parse successfully: {:?}", result.err());
+        
+        if let Ok(function) = result {
+            assert_eq!(function.name, "check_value");
+            assert_eq!(function.body.len(), 2); // if statement and return
+            
+            // Check that first statement is an if statement with 2 body statements
+            if let Statement::If { condition: _, body } = &function.body[0] {
+                assert_eq!(body.len(), 2); // print statements
+            } else {
+                panic!("First statement should be an if statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_your_exact_code() {
+        let lines = vec![
+            "check_value: function(num: i32) -> i32 {",
+            "    if (num > 0) {",
+            "        print(\"Number is positive\");",
+            "        print(num);",
+            "    };",
+            "    ",
+            "    return num;",
+            "};"
+        ];
+
+        let result = parse_function(&lines);
+        assert!(result.is_ok(), "Your code should parse: {:?}", result.err());
     }
 }

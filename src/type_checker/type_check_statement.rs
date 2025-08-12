@@ -81,36 +81,3 @@ pub trait TypeContext {
     fn get_function_signature(&self, statement: &Statement) -> Option<(Vec<Type>, Type)>;
     fn current_return_type(&self) -> Type;
 }
-
-/// Dummy Type enum assumed for comparison in type checking
-#[derive(Debug, PartialEq, Eq)]
-pub enum Type {
-    I32,
-    String,
-    Void,
-}
-
-/// Dummy Statement enum variants used in this implementation for reference.
-pub enum Statement {
-    VariableDeclaration {
-        name: String,
-        var_type: Type,
-        value: Expression,
-    },
-    FunctionCall {
-        name: String,
-        args: Vec<Expression>,
-    },
-    If {
-        condition: Expression,
-        body: Vec<Statement>,
-    },
-    Return {
-        value: Expression,
-    },
-}
-
-/// Dummy Expression enum for completeness
-pub enum Expression {
-    // variants omitted
-}

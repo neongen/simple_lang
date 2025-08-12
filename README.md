@@ -27,6 +27,7 @@ It supports:
 
   ```
   count: i32 = 42;
+  result: i32 = count + 8;  
   ```
   
 - Simple string and integer handling
@@ -61,10 +62,52 @@ It supports:
 
 ## 🚀 Run the Demo
 
-Run a sample `simple_lang` program using the built-in runner:
+Run all `simple_lang` demo programs using the built-in runner:
 
-nested_function_calls.lang
+Build and Run
+
+```bash
+cd simple_lang_demo_runner
+cargo run
 ```
+
+```
+=== simple_lang Demo Runner ===
+============================================================
+Running: demo_program/hello_world.lang
+============================================================
+📄 Source code:
+----------------------------------------
+main: function() -> i32 {
+    message: string = "Hello, World! Your code belongs to the Entity!";
+    count: i32 = 42;
+    
+    // Display message
+    print(message);
+    
+    // Arithmetic operations
+    result: i32 = count + 8;
+    print(int_to_string(result));
+
+    return 0;
+};
+----------------------------------------
+✅ Parsing successful
+📊 Program info:
+   Functions: 1
+   - main (params: 0, return: I32)
+
+🚀 Execution output:
+----------------------------------------
+Hello, World! Your code belongs to the Entity!
+50
+----------------------------------------
+✅ Program completed successfully (exit code: 0)
+============================================================
+Running: demo_program/nested_function_calls.lang
+============================================================
+📄 Source code:
+----------------------------------------
 // Simple strict syntax - every statement must end with semicolon
 // Type declarations are explicit and required
 // No implicit conversions
@@ -85,21 +128,86 @@ main: function() -> i32 {
     // nested function call 
     result: i32 = add_numbers(count, 8);
     
-    print(result);
-
-    // Control flow with explicit blocks
-    // if (result > 40) {
-    //     print("Result is greater than 40");
-    // };
+    print(int_to_string(result));
 
     return 0;
 };
-```
-Build and Run
 
-```bash
-cd simple_lang_demo_runner
-cargo run
+
+----------------------------------------
+✅ Parsing successful
+📊 Program info:
+   Functions: 2
+   - add_numbers (params: 2, return: I32)
+   - main (params: 0, return: I32)
+
+🚀 Execution output:
+----------------------------------------
+Hello, World! Your code belongs to the Entity!
+50
+----------------------------------------
+✅ Program completed successfully (exit code: 0)
+============================================================
+Running: demo_program/control_flow_demo.lang
+============================================================
+📄 Source code:
+----------------------------------------
+// Simple strict syntax - every statement must end with semicolon
+// Type declarations are explicit and required
+// No implicit conversions
+
+// Arithmetic operations
+add_numbers: function(a: i32, b: i32) -> i32 {
+    return a + b;
+};
+
+// Control flow
+check_positive: function(num: i32) -> i32 {
+    if (num > 0) {
+        print("Number is positive");
+        print(int_to_string(num));
+    };
+    
+    return num;
+};
+
+main: function() -> i32 {
+    message: string = "Hello, World! Your code belongs to the Entity!";
+    count: i32 = 42;
+    
+    // Display message
+    print(message);
+    
+    // nested function call 
+    result: i32 = add_numbers(count, 8);
+
+    // Control flow inside check_positive
+    result_checked: i32 = check_positive(result);
+
+    text: string = 42;
+
+    return 0;
+};
+
+
+----------------------------------------
+✅ Parsing successful
+📊 Program info:
+   Functions: 3
+   - add_numbers (params: 2, return: I32)
+   - check_positive (params: 1, return: I32)
+   - main (params: 0, return: I32)
+
+🚀 Execution output:
+----------------------------------------
+Hello, World! Your code belongs to the Entity!
+Number is positive
+50
+----------------------------------------
+✅ Program completed successfully (exit code: 0)
+============================================================
+Demo runner completed!
+============================================================
 ```
 
 ⚠️ **Status: Work in Progress**  

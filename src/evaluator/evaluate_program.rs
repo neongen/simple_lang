@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::ast::program_struct::Program;
-use crate::ast::expression_struct::Expression;
-use crate::ast::environment_struct::Environment;
+use crate::data_struct::program_struct::Program;
+use crate::data_struct::expression_struct::Expression;
+use crate::data_struct::environment_struct::Environment;
 use crate::evaluator::evaluate_function::evaluate_function;
 
 ///// Evaluates the program starting from the `main` function.

@@ -1,5 +1,5 @@
-use crate::ast::type_struct::Type;
-use crate::ast::expression_struct::Expression;
+use crate::data_struct::type_struct::Type;
+use crate::data_struct::expression_struct::Expression;
 
 pub enum Statement {
     VariableDeclaration {

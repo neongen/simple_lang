@@ -1,6 +1,6 @@
-use crate::ast::binary_operator_struct::BinaryOperator;
+use crate::data_struct::binary_operator_struct::BinaryOperator;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Expression {
     IntegerLiteral(i32),
     StringLiteral(String),

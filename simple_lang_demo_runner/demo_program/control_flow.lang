@@ -2,8 +2,19 @@
 // Type declarations are explicit and required
 // No implicit conversions
 
+// Arithmetic operations
 add_numbers: function(a: i32, b: i32) -> i32 {
     return a + b;
+};
+
+// Control flow
+check_positive: function(num: i32) -> i32 {
+    if (num > 0) {
+        print("Number is positive");
+        print(int_to_string(num));
+    };
+    
+    return num;
 };
 
 main: function() -> i32 {
@@ -13,12 +24,13 @@ main: function() -> i32 {
     // Display message
     print(message);
     
-    // Arithmetic operations
-    
     // nested function call 
     result: i32 = add_numbers(count, 8);
-    
-    print(int_to_string(result));
+
+    // Control flow inside check_positive
+    result_checked: i32 = check_positive(result);
+
+    text: string = 42;
 
     return 0;
 };

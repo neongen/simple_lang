@@ -1,14 +1,21 @@
-use crate::ast::statement_struct::Statement;
-use crate::ast::expression_struct::Expression;
-use crate::ast::type_struct::Type;
+// Simple fix for parse_statement.rs to handle your specific if statement format
+
+use crate::data_struct::statement_struct::Statement;
+use crate::data_struct::expression_struct::Expression;
+use crate::data_struct::type_struct::Type;
 use crate::parser::parse_expression::parse_expression;
 
 /// Parses a single statement line into a `Statement` AST node.
-/// Returns an error if the syntax is invalid.
+/// Enhanced to handle if statements properly.
 pub fn parse_statement(line: &str) -> Result<Statement, String> {
     let trimmed = line.trim();
 
-    // Must end with semicolon
+    // Handle if statements - check for the pattern that matches your code
+    if trimmed.starts_with("if (") && trimmed.contains(") {") {
+        return parse_if_statement_simple(trimmed);
+    }
+
+    // Must end with semicolon for non-if statements
     if !trimmed.ends_with(';') {
         return Err(String::from("Statement must end with a semicolon ';'"));
     }
@@ -20,11 +27,6 @@ pub fn parse_statement(line: &str) -> Result<Statement, String> {
         let expr_str = content["return ".len()..].trim();
         let expr = parse_expression(expr_str)?;
         return Ok(Statement::Return { value: expr });
-    }
-
-    // If statement (e.g., if (x > 0) { ... }; handled elsewhere, not here)
-    if content.starts_with("if ") {
-        return Err(String::from("If statement must be parsed at block level"));
     }
 
     // Variable declaration (e.g., name: type = expression)
@@ -62,8 +64,76 @@ pub fn parse_statement(line: &str) -> Result<Statement, String> {
     Err(String::from("Unrecognized statement syntax"))
 }
 
+/// Simple if statement parser for single-line format with opening brace
+fn parse_if_statement_simple(line: &str) -> Result<Statement, String> {
+    let trimmed = line.trim();
+    
+    // Find the condition part between "if (" and ") {"
+    let condition_start = 4; // Length of "if ("
+    let condition_end = trimmed.find(") {")
+        .ok_or_else(|| "Invalid if statement format".to_string())?;
+    
+    let condition_str = &trimmed[condition_start..condition_end];
+    let condition = parse_expression(condition_str)?;
+    
+    // For now, return an if statement with empty body
+    // The actual body will be parsed separately by the function parser
+    Ok(Statement::If {
+        condition,
+        body: Vec::new(), // Will be filled by the function parser
+    })
+}
+
+/// Parse function that handles multi-line if statements by collecting the body
+pub fn parse_if_statement_multiline(
+    if_line: &str,
+    remaining_lines: &[&str],
+) -> Result<(Statement, usize), String> {
+    // Parse the condition from the first line
+    let trimmed = if_line.trim();
+    
+    if !trimmed.starts_with("if (") || !trimmed.contains(") {") {
+        return Err("Invalid if statement format".to_string());
+    }
+    
+    let condition_start = 4; // Length of "if ("
+    let condition_end = trimmed.find(") {")
+        .ok_or_else(|| "Invalid if statement format".to_string())?;
+    
+    let condition_str = &trimmed[condition_start..condition_end];
+    let condition = parse_expression(condition_str)?;
+    
+    // Collect body lines until we find "};"
+    let mut body_lines = Vec::new();
+    let mut lines_consumed = 0;
+    
+    for &line in remaining_lines {
+        lines_consumed += 1;
+        let line_trimmed = line.trim();
+        
+        if line_trimmed == "};" {
+            break;
+        }
+        
+        if !line_trimmed.is_empty() {
+            body_lines.push(line);
+        }
+    }
+    
+    // Parse body statements
+    let mut body = Vec::new();
+    for body_line in body_lines {
+        let trimmed_body = body_line.trim();
+        if !trimmed_body.is_empty() {
+            let stmt = parse_statement(trimmed_body)?;
+            body.push(stmt);
+        }
+    }
+    
+    Ok((Statement::If { condition, body }, lines_consumed))
+}
+
 /// Parses a comma-separated list of expressions.
-/// Used for function call arguments.
 fn parse_arguments(args_str: &str) -> Result<Vec<Expression>, String> {
     if args_str.trim().is_empty() {
         return Ok(vec![]);
@@ -74,12 +144,46 @@ fn parse_arguments(args_str: &str) -> Result<Vec<Expression>, String> {
         .collect()
 }
 
-/// Parses a type string like "i32" or "string" into a `Type` enum.
+/// Parses a type string into a Type enum.
 fn parse_type(type_str: &str) -> Result<Type, String> {
     match type_str {
         "i32" => Ok(Type::I32),
         "string" => Ok(Type::String),
         "void" => Ok(Type::Void),
         _ => Err(format!("Unknown type: {}", type_str)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_if_statement_simple() {
+        let line = "if (num > 0) {";
+        let result = parse_if_statement_simple(line);
+        assert!(result.is_ok());
+        
+        if let Ok(Statement::If { condition: _, body }) = result {
+            assert_eq!(body.len(), 0); // Body will be empty initially
+        }
+    }
+
+    #[test]
+    fn test_parse_if_statement_multiline() {
+        let if_line = "if (num > 0) {";
+        let remaining_lines = vec![
+            "    print(\"Number is positive\");",
+            "    print(num);",
+            "};"
+        ];
+        
+        let result = parse_if_statement_multiline(if_line, &remaining_lines);
+        assert!(result.is_ok());
+        
+        if let Ok((Statement::If { condition: _, body }, lines_consumed)) = result {
+            assert_eq!(body.len(), 2);
+            assert_eq!(lines_consumed, 3);
+        }
     }
 }
