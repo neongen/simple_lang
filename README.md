@@ -72,7 +72,7 @@ cargo run
 ```
 
 ```
-=== simple_lang Demo Runner ===
+=== simple_lang Demo Runner with Type Checking ===
 ============================================================
 Running: demo_program/hello_world.lang
 ============================================================
@@ -96,6 +96,10 @@ main: function() -> i32 {
 📊 Program info:
    Functions: 1
    - main (params: 0, return: I32)
+
+🔍 Type checking:
+----------------------------------------
+✅ Type checking passed
 
 🚀 Execution output:
 ----------------------------------------
@@ -141,6 +145,10 @@ main: function() -> i32 {
    - add_numbers (params: 2, return: I32)
    - main (params: 0, return: I32)
 
+🔍 Type checking:
+----------------------------------------
+✅ Type checking passed
+
 🚀 Execution output:
 ----------------------------------------
 Hello, World! Your code belongs to the Entity!
@@ -148,7 +156,7 @@ Hello, World! Your code belongs to the Entity!
 ----------------------------------------
 ✅ Program completed successfully (exit code: 0)
 ============================================================
-Running: demo_program/control_flow_demo.lang
+Running: demo_program/control_flow.lang
 ============================================================
 📄 Source code:
 ----------------------------------------
@@ -184,7 +192,7 @@ main: function() -> i32 {
     // Control flow inside check_positive
     result_checked: i32 = check_positive(result);
 
-    text: string = 42;
+    text: i32 = 42;
 
     return 0;
 };
@@ -197,6 +205,10 @@ main: function() -> i32 {
    - add_numbers (params: 2, return: I32)
    - check_positive (params: 1, return: I32)
    - main (params: 0, return: I32)
+
+🔍 Type checking:
+----------------------------------------
+✅ Type checking passed
 
 🚀 Execution output:
 ----------------------------------------
