@@ -1,5 +1,5 @@
 // Declare modules explicitly
-pub mod data_struct {
+pub mod ast {
     pub mod binary_operator_struct;
     pub mod environment_struct;
     pub mod expression_struct;
