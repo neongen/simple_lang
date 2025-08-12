@@ -1,9 +1,9 @@
 // Final integrated parse_function.rs that works with your exact code format
 
-use crate::data_struct::type_struct::Type;
-use crate::data_struct::function_struct::Function;
-use crate::data_struct::parameter_struct::Parameter;
-use crate::data_struct::statement_struct::Statement;
+use crate::ast::type_struct::Type;
+use crate::ast::function_struct::Function;
+use crate::ast::parameter_struct::Parameter;
+use crate::ast::statement_struct::Statement;
 use crate::parser::parse_statement::{parse_statement, parse_if_statement_multiline};
 
 /// Parses a function definition from a slice of input lines.

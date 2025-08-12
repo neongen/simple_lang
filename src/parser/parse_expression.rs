@@ -1,5 +1,5 @@
-use crate::data_struct::expression_struct::Expression;
-use crate::data_struct::binary_operator_struct::BinaryOperator;
+use crate::ast::expression_struct::Expression;
+use crate::ast::binary_operator_struct::BinaryOperator;
 
 ///// Parses a string expression into an `Expression` AST node.
 /////

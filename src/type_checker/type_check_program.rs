@@ -1,15 +1,15 @@
-use crate::data_struct::binary_operator_struct::BinaryOperator;
-use crate::data_struct::expression_struct::Expression;
-use crate::data_struct::function_struct::Function;
+use crate::ast::binary_operator_struct::BinaryOperator;
+use crate::ast::expression_struct::Expression;
+use crate::ast::function_struct::Function;
 ///! Type-checks an entire program by verifying each function is correctly typed.
 ///!
 ///! This module validates that all functions in a program have consistent types,
 ///! proper variable declarations, correct function calls, and valid control flow.
 ///! Returns detailed error messages for any type mismatches found.
 ///! Ensures type safety before program evaluation begins.
-use crate::data_struct::program_struct::Program;
-use crate::data_struct::statement_struct::Statement;
-use crate::data_struct::type_struct::Type;
+use crate::ast::program_struct::Program;
+use crate::ast::statement_struct::Statement;
+use crate::ast::type_struct::Type;
 
 /// Type-checks the entire program by verifying each function is correctly typed.
 /// Returns Ok(()) if all functions pass type checking, otherwise returns an error

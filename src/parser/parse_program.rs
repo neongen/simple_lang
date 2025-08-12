@@ -1,5 +1,5 @@
-use crate::data_struct::program_struct::Program;
-use crate::data_struct::function_struct::Function;
+use crate::ast::program_struct::Program;
+use crate::ast::function_struct::Function;
 use crate::parser::parse_function::parse_function;
 use std::string::String;
 use std::vec::Vec;

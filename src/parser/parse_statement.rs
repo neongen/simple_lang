@@ -1,8 +1,8 @@
 // Simple fix for parse_statement.rs to handle your specific if statement format
 
-use crate::data_struct::statement_struct::Statement;
-use crate::data_struct::expression_struct::Expression;
-use crate::data_struct::type_struct::Type;
+use crate::ast::statement_struct::Statement;
+use crate::ast::expression_struct::Expression;
+use crate::ast::type_struct::Type;
 use crate::parser::parse_expression::parse_expression;
 
 /// Parses a single statement line into a `Statement` AST node.

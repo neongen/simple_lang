@@ -1,10 +1,10 @@
 // Enhanced evaluate_function.rs with proper if statement evaluation
 
-use crate::data_struct::binary_operator_struct::BinaryOperator;
-use crate::data_struct::environment_struct::Environment;
-use crate::data_struct::expression_struct::Expression;
-use crate::data_struct::function_struct::Function;
-use crate::data_struct::statement_struct::Statement;
+use crate::ast::binary_operator_struct::BinaryOperator;
+use crate::ast::environment_struct::Environment;
+use crate::ast::expression_struct::Expression;
+use crate::ast::function_struct::Function;
+use crate::ast::statement_struct::Statement;
 
 /// Evaluates a function given the function definition and argument expressions.
 /// Returns the resulting Expression or an error string.
@@ -223,7 +223,7 @@ fn evaluate_binary_op(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data_struct::type_struct::Type;
+    use crate::ast::type_struct::Type;
     use std::collections::HashMap;
 
     #[test]

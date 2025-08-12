@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::data_struct::program_struct::Program;
-use crate::data_struct::expression_struct::Expression;
-use crate::data_struct::environment_struct::Environment;
+use crate::ast::environment_struct::Environment;
+use crate::ast::expression_struct::Expression;
+use crate::ast::program_struct::Program;
 use crate::evaluator::evaluate_function::evaluate_function;
 
 ///// Evaluates the program starting from the `main` function.
@@ -17,7 +17,8 @@ pub fn evaluate_program(program: &Program) -> Result<i32, String> {
             .collect(),
     };
 
-    let main_fn = env.get_function("main")
+    let main_fn = env
+        .get_function("main")
         .ok_or_else(|| "main function not found".to_string())?;
 
     let result = evaluate_function(main_fn, vec![], &mut env)?;

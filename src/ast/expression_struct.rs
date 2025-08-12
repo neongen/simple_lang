@@ -1,4 +1,4 @@
-use crate::data_struct::binary_operator_struct::BinaryOperator;
+use crate::ast::binary_operator_struct::BinaryOperator;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Expression {
