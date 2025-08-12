@@ -1,4 +1,4 @@
-// Enhanced evaluate_function.rs with proper if statement evaluation
+// Enhanced evaluate_function.rs with proper if-else statement evaluation
 
 use crate::ast::binary_operator_struct::BinaryOperator;
 use crate::ast::environment_struct::Environment;
@@ -8,7 +8,7 @@ use crate::ast::statement_struct::Statement;
 
 /// Evaluates a function given the function definition and argument expressions.
 /// Returns the resulting Expression or an error string.
-/// Enhanced with proper if statement evaluation.
+/// Enhanced with proper if-else statement evaluation.
 pub fn evaluate_function<'a>(
     function: &'a Function,
     args: Vec<Expression>,
@@ -34,7 +34,7 @@ pub fn evaluate_function<'a>(
 }
 
 /// Evaluate a list of statements in order, returning the final expression if a return is encountered.
-/// Enhanced to handle if statements properly.
+/// Enhanced to handle if-else statements properly.
 fn evaluate_statements<'a>(
     statements: &[Statement],
     env: &mut Environment<'a>,
@@ -49,7 +49,7 @@ fn evaluate_statements<'a>(
 }
 
 /// Evaluate a single statement.
-/// Enhanced with proper if statement handling.
+/// Enhanced with proper if-else statement handling.
 fn evaluate_statement<'a>(
     stmt: &Statement,
     env: &mut Environment<'a>,
@@ -84,13 +84,24 @@ fn evaluate_statement<'a>(
             }
         },
 
-        Statement::If { condition, body } => {
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        } => {
             let cond_val = evaluate_expression(condition, env)?;
             if is_truthy(&cond_val)? {
                 // Execute if body statements
                 for stmt in body {
                     if let Some(ret_val) = evaluate_statement(stmt, env)? {
                         return Ok(Some(ret_val)); // Early return from if block
+                    }
+                }
+            } else if let Some(else_statements) = else_body {
+                // Execute else body statements
+                for stmt in else_statements {
+                    if let Some(ret_val) = evaluate_statement(stmt, env)? {
+                        return Ok(Some(ret_val)); // Early return from else block
                     }
                 }
             }
@@ -242,6 +253,7 @@ mod tests {
                 var_type: Type::I32,
                 value: Expression::IntegerLiteral(42),
             }],
+            else_body: None,
         };
 
         let result = evaluate_statement(&if_stmt, &mut env);
@@ -265,11 +277,45 @@ mod tests {
                 var_type: Type::I32,
                 value: Expression::IntegerLiteral(42),
             }],
+            else_body: None,
         };
 
         let result = evaluate_statement(&if_stmt, &mut env);
         assert!(result.is_ok());
         assert!(env.get("result").is_none()); // Should not be executed
+    }
+
+    #[test]
+    fn test_evaluate_if_else_statement() {
+        let mut env = Environment::new(HashMap::new());
+        env.insert_variable("x".to_string(), Expression::IntegerLiteral(-5));
+
+        let if_stmt = Statement::If {
+            condition: Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::VariableRef("x".to_string())),
+                right: Box::new(Expression::IntegerLiteral(0)),
+            },
+            body: vec![Statement::VariableDeclaration {
+                name: "result".to_string(),
+                var_type: Type::I32,
+                value: Expression::IntegerLiteral(42),
+            }],
+            else_body: Some(vec![Statement::VariableDeclaration {
+                name: "else_result".to_string(),
+                var_type: Type::I32,
+                value: Expression::IntegerLiteral(99),
+            }]),
+        };
+
+        let result = evaluate_statement(&if_stmt, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get("result").is_none()); // Should not be executed
+        assert!(env.get("else_result").is_some()); // Should be executed
+        assert_eq!(
+            env.get("else_result").unwrap(),
+            &Expression::IntegerLiteral(99)
+        );
     }
 
     #[test]

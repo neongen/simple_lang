@@ -1,7 +1,7 @@
-// Simple fix for parse_statement.rs to handle your specific if statement format
+// Enhanced parse_statement.rs to handle if-else statements
 
-use crate::ast::statement_struct::Statement;
 use crate::ast::expression_struct::Expression;
+use crate::ast::statement_struct::Statement;
 use crate::ast::type_struct::Type;
 use crate::parser::parse_expression::parse_expression;
 
@@ -67,60 +67,70 @@ pub fn parse_statement(line: &str) -> Result<Statement, String> {
 /// Simple if statement parser for single-line format with opening brace
 fn parse_if_statement_simple(line: &str) -> Result<Statement, String> {
     let trimmed = line.trim();
-    
+
     // Find the condition part between "if (" and ") {"
     let condition_start = 4; // Length of "if ("
-    let condition_end = trimmed.find(") {")
+    let condition_end = trimmed
+        .find(") {")
         .ok_or_else(|| "Invalid if statement format".to_string())?;
-    
+
     let condition_str = &trimmed[condition_start..condition_end];
     let condition = parse_expression(condition_str)?;
-    
-    // For now, return an if statement with empty body
+
+    // For now, return an if statement with empty body and no else
     // The actual body will be parsed separately by the function parser
     Ok(Statement::If {
         condition,
         body: Vec::new(), // Will be filled by the function parser
+        else_body: None,  // Will be filled by the function parser if else exists
     })
 }
 
 /// Parse function that handles multi-line if statements by collecting the body
+/// Enhanced to support else blocks
 pub fn parse_if_statement_multiline(
     if_line: &str,
     remaining_lines: &[&str],
 ) -> Result<(Statement, usize), String> {
     // Parse the condition from the first line
     let trimmed = if_line.trim();
-    
+
     if !trimmed.starts_with("if (") || !trimmed.contains(") {") {
         return Err("Invalid if statement format".to_string());
     }
-    
+
     let condition_start = 4; // Length of "if ("
-    let condition_end = trimmed.find(") {")
+    let condition_end = trimmed
+        .find(") {")
         .ok_or_else(|| "Invalid if statement format".to_string())?;
-    
+
     let condition_str = &trimmed[condition_start..condition_end];
     let condition = parse_expression(condition_str)?;
-    
-    // Collect body lines until we find "};"
+
+    // Collect body lines until we find "} else {" or "};"
     let mut body_lines = Vec::new();
     let mut lines_consumed = 0;
-    
-    for &line in remaining_lines {
+    let mut found_else = false;
+    let mut else_block_start = 0;
+
+    for (i, &line) in remaining_lines.iter().enumerate() {
         lines_consumed += 1;
         let line_trimmed = line.trim();
-        
+
         if line_trimmed == "};" {
             break;
+        } else if line_trimmed == "} else {" {
+            found_else = true;
+            else_block_start = i + 1;
+            break;
         }
-        
+
         if !line_trimmed.is_empty() {
             body_lines.push(line);
         }
     }
-    
-    // Parse body statements
+
+    // Parse if body statements
     let mut body = Vec::new();
     for body_line in body_lines {
         let trimmed_body = body_line.trim();
@@ -129,8 +139,49 @@ pub fn parse_if_statement_multiline(
             body.push(stmt);
         }
     }
-    
-    Ok((Statement::If { condition, body }, lines_consumed))
+
+    // Parse else body if it exists
+    let mut else_body = None;
+    if found_else {
+        let mut else_body_lines = Vec::new();
+
+        // Continue from where we left off to find the end of else block
+        for &line in &remaining_lines[else_block_start..] {
+            lines_consumed += 1;
+            let line_trimmed = line.trim();
+
+            if line_trimmed == "};" {
+                break;
+            }
+
+            if !line_trimmed.is_empty() {
+                else_body_lines.push(line);
+            }
+        }
+
+        // Parse else body statements
+        let mut else_statements = Vec::new();
+        for else_line in else_body_lines {
+            let trimmed_else = else_line.trim();
+            if !trimmed_else.is_empty() {
+                let stmt = parse_statement(trimmed_else)?;
+                else_statements.push(stmt);
+            }
+        }
+
+        if !else_statements.is_empty() {
+            else_body = Some(else_statements);
+        }
+    }
+
+    Ok((
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        },
+        lines_consumed,
+    ))
 }
 
 /// Parses a comma-separated list of expressions.
@@ -163,26 +214,73 @@ mod tests {
         let line = "if (num > 0) {";
         let result = parse_if_statement_simple(line);
         assert!(result.is_ok());
-        
-        if let Ok(Statement::If { condition: _, body }) = result {
+
+        if let Ok(Statement::If {
+            condition: _,
+            body,
+            else_body,
+        }) = result
+        {
             assert_eq!(body.len(), 0); // Body will be empty initially
+            assert!(else_body.is_none()); // No else body initially
         }
     }
 
     #[test]
-    fn test_parse_if_statement_multiline() {
+    fn test_parse_if_else_statement_multiline() {
         let if_line = "if (num > 0) {";
         let remaining_lines = vec![
             "    print(\"Number is positive\");",
             "    print(num);",
-            "};"
+            "} else {",
+            "    print(\"Number is not positive\");",
+            "};",
         ];
-        
+
         let result = parse_if_statement_multiline(if_line, &remaining_lines);
         assert!(result.is_ok());
-        
-        if let Ok((Statement::If { condition: _, body }, lines_consumed)) = result {
+
+        if let Ok((
+            Statement::If {
+                condition: _,
+                body,
+                else_body,
+            },
+            lines_consumed,
+        )) = result
+        {
+            assert_eq!(body.len(), 2); // Two statements in if body
+            assert!(else_body.is_some()); // Should have else body
+            if let Some(else_stmts) = else_body {
+                assert_eq!(else_stmts.len(), 1); // One statement in else body
+            }
+            assert_eq!(lines_consumed, 5);
+        }
+    }
+
+    #[test]
+    fn test_parse_if_statement_multiline_without_else() {
+        let if_line = "if (num > 0) {";
+        let remaining_lines = vec![
+            "    print(\"Number is positive\");",
+            "    print(num);",
+            "};",
+        ];
+
+        let result = parse_if_statement_multiline(if_line, &remaining_lines);
+        assert!(result.is_ok());
+
+        if let Ok((
+            Statement::If {
+                condition: _,
+                body,
+                else_body,
+            },
+            lines_consumed,
+        )) = result
+        {
             assert_eq!(body.len(), 2);
+            assert!(else_body.is_none()); // Should not have else body
             assert_eq!(lines_consumed, 3);
         }
     }

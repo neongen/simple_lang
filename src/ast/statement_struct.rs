@@ -1,5 +1,5 @@
-use crate::ast::type_struct::Type;
 use crate::ast::expression_struct::Expression;
+use crate::ast::type_struct::Type;
 
 pub enum Statement {
     VariableDeclaration {
@@ -14,6 +14,7 @@ pub enum Statement {
     If {
         condition: Expression,
         body: Vec<Statement>,
+        else_body: Option<Vec<Statement>>,
     },
     Return {
         value: Expression,

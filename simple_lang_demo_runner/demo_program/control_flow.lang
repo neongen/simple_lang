@@ -12,7 +12,9 @@ check_positive: function(num: i32) -> i32 {
     if (num > 0) {
         print("Number is positive");
         print(int_to_string(num));
-    };
+    } else {
+        print("Number is not positive");
+    }
     
     return num;
 };

@@ -1,12 +1,13 @@
-use crate::ast::binary_operator_struct::BinaryOperator;
-use crate::ast::expression_struct::Expression;
-use crate::ast::function_struct::Function;
 ///! Type-checks an entire program by verifying each function is correctly typed.
 ///!
 ///! This module validates that all functions in a program have consistent types,
 ///! proper variable declarations, correct function calls, and valid control flow.
 ///! Returns detailed error messages for any type mismatches found.
 ///! Ensures type safety before program evaluation begins.
+///! Enhanced to support if-else statements with proper type checking.
+use crate::ast::binary_operator_struct::BinaryOperator;
+use crate::ast::expression_struct::Expression;
+use crate::ast::function_struct::Function;
 use crate::ast::program_struct::Program;
 use crate::ast::statement_struct::Statement;
 use crate::ast::type_struct::Type;
@@ -62,6 +63,7 @@ fn type_check_function(function: &Function) -> Result<(), String> {
 }
 
 /// Type-checks a statement within the given context and updates variable bindings.
+/// Enhanced to handle if-else statements properly.
 fn type_check_statement(stmt: &Statement, context: &mut TypeContext) -> Result<(), String> {
     match stmt {
         Statement::VariableDeclaration {
@@ -88,7 +90,11 @@ fn type_check_statement(stmt: &Statement, context: &mut TypeContext) -> Result<(
             }
             Ok(())
         }
-        Statement::If { condition, body } => {
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        } => {
             let cond_type = type_check_expression(condition, context)?;
             if cond_type != Type::I32 {
                 return Err(format!(
@@ -96,9 +102,19 @@ fn type_check_statement(stmt: &Statement, context: &mut TypeContext) -> Result<(
                     cond_type
                 ));
             }
+
+            // Type check if body statements
             for stmt in body {
                 type_check_statement(stmt, context)?;
             }
+
+            // Type check else body statements if they exist
+            if let Some(else_statements) = else_body {
+                for stmt in else_statements {
+                    type_check_statement(stmt, context)?;
+                }
+            }
+
             Ok(())
         }
         Statement::Return { value } => {
@@ -265,6 +281,45 @@ mod tests {
                     },
                     Statement::Return {
                         value: Expression::VariableRef("count".to_string()),
+                    },
+                ],
+            }],
+        };
+
+        let result = type_check_program(&program);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_if_else_type_checking() {
+        let program = Program {
+            functions: vec![Function {
+                name: "main".to_string(),
+                params: vec![],
+                return_type: Type::I32,
+                body: vec![
+                    Statement::VariableDeclaration {
+                        name: "count".to_string(),
+                        var_type: Type::I32,
+                        value: Expression::IntegerLiteral(42),
+                    },
+                    Statement::If {
+                        condition: Expression::BinaryOp {
+                            op: BinaryOperator::GreaterThan,
+                            left: Box::new(Expression::VariableRef("count".to_string())),
+                            right: Box::new(Expression::IntegerLiteral(0)),
+                        },
+                        body: vec![Statement::FunctionCall {
+                            name: "print".to_string(),
+                            args: vec![Expression::StringLiteral("Positive".to_string())],
+                        }],
+                        else_body: Some(vec![Statement::FunctionCall {
+                            name: "print".to_string(),
+                            args: vec![Expression::StringLiteral("Not positive".to_string())],
+                        }]),
+                    },
+                    Statement::Return {
+                        value: Expression::IntegerLiteral(0),
                     },
                 ],
             }],

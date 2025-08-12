@@ -1,10 +1,10 @@
 // Final integrated parse_function.rs that works with your exact code format
 
-use crate::ast::type_struct::Type;
 use crate::ast::function_struct::Function;
 use crate::ast::parameter_struct::Parameter;
 use crate::ast::statement_struct::Statement;
-use crate::parser::parse_statement::{parse_statement, parse_if_statement_multiline};
+use crate::ast::type_struct::Type;
+use crate::parser::parse_statement::{parse_if_statement_multiline, parse_statement};
 
 /// Parses a function definition from a slice of input lines.
 /// Works with your exact code format including multi-line if statements.
@@ -46,7 +46,7 @@ fn parse_function_body_integrated(lines: &[&str]) -> Result<Vec<Statement>, Stri
 
     while i < lines.len() {
         let line = lines[i].trim();
-        
+
         // Skip empty lines
         if line.is_empty() {
             i += 1;
@@ -57,7 +57,8 @@ fn parse_function_body_integrated(lines: &[&str]) -> Result<Vec<Statement>, Stri
         if line.starts_with("if (") && line.contains(") {") && !line.contains("};") {
             // This is a multi-line if statement
             let remaining_lines = &lines[i + 1..];
-            let (if_statement, lines_consumed) = parse_if_statement_multiline(line, remaining_lines)?;
+            let (if_statement, lines_consumed) =
+                parse_if_statement_multiline(line, remaining_lines)?;
             body.push(if_statement);
             i += lines_consumed + 1; // +1 for the if line itself
         } else {
@@ -81,8 +82,12 @@ fn parse_function_signature(header: &str) -> Result<(String, Vec<Parameter>, Typ
     let name = parts[0].trim().to_string();
     let signature = parts[1].trim();
 
-    let open_paren = signature.find('(').ok_or("Missing '(' in function signature.")?;
-    let close_paren = signature.find(')').ok_or("Missing ')' in function signature.")?;
+    let open_paren = signature
+        .find('(')
+        .ok_or("Missing '(' in function signature.")?;
+    let close_paren = signature
+        .find(')')
+        .ok_or("Missing ')' in function signature.")?;
     let params_str = &signature[open_paren + 1..close_paren];
     let return_str = signature[close_paren + 1..].trim();
 
@@ -134,18 +139,27 @@ mod tests {
             "    };",
             "    ",
             "    return num;",
-            "};"
+            "};",
         ];
 
         let result = parse_function(&lines);
-        assert!(result.is_ok(), "Should parse successfully: {:?}", result.err());
-        
+        assert!(
+            result.is_ok(),
+            "Should parse successfully: {:?}",
+            result.err()
+        );
+
         if let Ok(function) = result {
             assert_eq!(function.name, "check_value");
             assert_eq!(function.body.len(), 2); // if statement and return
-            
+
             // Check that first statement is an if statement with 2 body statements
-            if let Statement::If { condition: _, body } = &function.body[0] {
+            if let Statement::If {
+                condition: _,
+                body,
+                else_body,
+            } = &function.body[0]
+            {
                 assert_eq!(body.len(), 2); // print statements
             } else {
                 panic!("First statement should be an if statement");
@@ -163,7 +177,7 @@ mod tests {
             "    };",
             "    ",
             "    return num;",
-            "};"
+            "};",
         ];
 
         let result = parse_function(&lines);

@@ -21,9 +21,10 @@ fn main() {
 
     // List of demo programs to run
     let demo_programs = vec![
-        "demo_program/hello_world.lang",
-        "demo_program/nested_function_calls.lang",
-        "demo_program/control_flow.lang",
+        // "demo_program/hello_world.lang",
+        // "demo_program/nested_function_calls.lang",
+        // "demo_program/control_flow.lang",
+        "demo_program/if_else_statement.lang",
     ];
 
     for program_path in demo_programs {
