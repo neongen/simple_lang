@@ -220,7 +220,6 @@ impl TypeContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data_struct::parameter_struct::Parameter;
 
     #[test]
     fn test_type_mismatch_i32_string() {
