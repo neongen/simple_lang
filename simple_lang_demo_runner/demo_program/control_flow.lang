@@ -30,7 +30,7 @@ main: function() -> i32 {
     // Control flow inside check_positive
     result_checked: i32 = check_positive(result);
 
-    text: string = 42;
+    text: i32 = 42;
 
     return 0;
 };
