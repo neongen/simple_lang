@@ -1,38 +1,74 @@
+use crate::data_struct::binary_operator_struct::BinaryOperator;
+use crate::data_struct::expression_struct::Expression;
+use crate::data_struct::function_struct::Function;
+///! Type-checks an entire program by verifying each function is correctly typed.
+///!
+///! This module validates that all functions in a program have consistent types,
+///! proper variable declarations, correct function calls, and valid control flow.
+///! Returns detailed error messages for any type mismatches found.
+///! Ensures type safety before program evaluation begins.
+use crate::data_struct::program_struct::Program;
+use crate::data_struct::statement_struct::Statement;
+use crate::data_struct::type_struct::Type;
+
 /// Type-checks the entire program by verifying each function is correctly typed.
 /// Returns Ok(()) if all functions pass type checking, otherwise returns an error
 /// describing the first encountered type error.
 pub fn type_check_program(program: &Program) -> Result<(), String> {
     for function in &program.functions {
-        type_check_function(function)?
+        type_check_function(function)?;
     }
     Ok(())
 }
 
-/// Helper function to type-check a single function.
+/// Type-checks a single function by validating parameters, body statements, and return type.
 fn type_check_function(function: &Function) -> Result<(), String> {
-    // Create a new context for parameter types
     let mut context = TypeContext::new();
 
+    // Add parameters to context
     for param in &function.params {
         if context.contains(&param.name) {
-            return Err(format!("Parameter '{}' declared multiple times", param.name));
+            return Err(format!(
+                "Parameter '{}' declared multiple times",
+                param.name
+            ));
         }
         context.insert(param.name.clone(), param.param_type.clone());
     }
 
+    // Type check all statements in the function body
     for stmt in &function.body {
-        type_check_statement(stmt, &context)?
+        type_check_statement(stmt, &mut context)?;
     }
 
-    // TODO: Optionally verify the function's return paths conform to function.return_type
+    // Verify that non-void functions have a return statement
+    if function.return_type != Type::Void {
+        if let Some(last_stmt) = function.body.last() {
+            if !is_return_statement(last_stmt) {
+                return Err(format!(
+                    "Function '{}' missing return statement",
+                    function.name
+                ));
+            }
+        } else {
+            return Err(format!(
+                "Function '{}' has empty body but non-void return type",
+                function.name
+            ));
+        }
+    }
 
     Ok(())
 }
 
-/// Helper function to type-check a statement within a given type context.
-fn type_check_statement(stmt: &Statement, context: &TypeContext) -> Result<(), String> {
+/// Type-checks a statement within the given context and updates variable bindings.
+fn type_check_statement(stmt: &Statement, context: &mut TypeContext) -> Result<(), String> {
     match stmt {
-        Statement::VariableDeclaration { name, var_type, value } => {
+        Statement::VariableDeclaration {
+            name,
+            var_type,
+            value,
+        } => {
             let expr_type = type_check_expression(value, context)?;
             if &expr_type != var_type {
                 return Err(format!(
@@ -43,8 +79,7 @@ fn type_check_statement(stmt: &Statement, context: &TypeContext) -> Result<(), S
             if context.contains(name) {
                 return Err(format!("Variable '{}' redeclared in the same scope", name));
             }
-            // Note: Since context is immutable, variable scoping and insertion
-            // would require a mutable or layered context in a full impl.
+            context.insert(name.clone(), var_type.clone());
             Ok(())
         }
         Statement::FunctionCall { name: _, args } => {
@@ -73,56 +108,170 @@ fn type_check_statement(stmt: &Statement, context: &TypeContext) -> Result<(), S
     }
 }
 
-/// Helper function to type-check an expression within a given type context.
+/// Type-checks an expression and returns its type.
 fn type_check_expression(expr: &Expression, context: &TypeContext) -> Result<Type, String> {
     match expr {
         Expression::IntegerLiteral(_) => Ok(Type::I32),
         Expression::StringLiteral(_) => Ok(Type::String),
-        Expression::VariableRef(name) => {
-            context.get(name).cloned().ok_or_else(|| {
-                format!("Use of undeclared variable '{}'", name)
-            })
-        }
-        Expression::BinaryOp { op: _, left, right } => {
+        Expression::VariableRef(name) => context
+            .get(name)
+            .cloned()
+            .ok_or_else(|| format!("Use of undeclared variable '{}'", name)),
+        Expression::BinaryOp { op, left, right } => {
             let left_type = type_check_expression(left, context)?;
             let right_type = type_check_expression(right, context)?;
-            if left_type != Type::I32 || right_type != Type::I32 {
-                return Err("Binary operations require both operands to be i32".to_string());
-            }
-            Ok(Type::I32)
+            check_binary_op_types(op, &left_type, &right_type)
         }
-        Expression::FunctionCall { name: _, args } => {
-            // Without full function signature info, assume args are correctly typed.
-            for arg in args {
-                let _ = type_check_expression(arg, context)?;
+        Expression::FunctionCall { name, args } => {
+            // Handle built-in functions
+            match name.as_str() {
+                "print" => {
+                    if args.len() != 1 {
+                        return Err(String::from("print expects exactly one argument"));
+                    }
+                    let arg_type = type_check_expression(&args[0], context)?;
+                    if arg_type != Type::String {
+                        return Err(String::from("print expects a string argument"));
+                    }
+                    Ok(Type::Void)
+                }
+                "int_to_string" => {
+                    if args.len() != 1 {
+                        return Err(String::from("int_to_string expects exactly one argument"));
+                    }
+                    let arg_type = type_check_expression(&args[0], context)?;
+                    if arg_type != Type::I32 {
+                        return Err(String::from("int_to_string expects an i32 argument"));
+                    }
+                    Ok(Type::String)
+                }
+                _ => {
+                    // For user-defined functions, we'd need function signature lookup
+                    // For now, assume they return i32
+                    for arg in args {
+                        type_check_expression(arg, context)?;
+                    }
+                    Ok(Type::I32)
+                }
             }
-            // In a full implementation, would look up function return type.
-            Ok(Type::I32) // Placeholder
         }
     }
 }
 
-/// Simple type context for name-to-type mapping.
-/// Immutable in this minimal example, so using std::collections::HashMap internally.
-use std::collections::HashMap;
+/// Checks if binary operation is valid for given types and returns result type.
+fn check_binary_op_types(op: &BinaryOperator, left: &Type, right: &Type) -> Result<Type, String> {
+    use BinaryOperator::*;
+    use Type::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TypeContext(HashMap<String, Type>);
+    match op {
+        Add | Subtract | Multiply | Divide => {
+            if left == &I32 && right == &I32 {
+                Ok(I32)
+            } else {
+                Err(format!(
+                    "Arithmetic operator '{:?}' requires both operands to be i32, got {:?} and {:?}",
+                    op, left, right
+                ))
+            }
+        }
+        GreaterThan | LessThan | Equal => {
+            if left == right && (*left == I32 || *left == String) {
+                Ok(I32) // Boolean result as i32
+            } else {
+                Err(format!(
+                    "Comparison operator '{:?}' requires both operands to be same type (i32 or string), got {:?} and {:?}",
+                    op, left, right
+                ))
+            }
+        }
+    }
+}
+
+/// Returns true if the statement is a return statement.
+fn is_return_statement(stmt: &Statement) -> bool {
+    matches!(stmt, Statement::Return { .. })
+}
+
+/// Simple type context for tracking variable types in current scope.
+struct TypeContext {
+    variables: std::collections::HashMap<String, Type>,
+}
 
 impl TypeContext {
-    pub fn new() -> Self {
-        TypeContext(HashMap::new())
+    fn new() -> Self {
+        Self {
+            variables: std::collections::HashMap::new(),
+        }
     }
 
-    pub fn insert(&mut self, name: String, ty: Type) {
-        self.0.insert(name, ty);
+    fn insert(&mut self, name: String, ty: Type) {
+        self.variables.insert(name, ty);
     }
 
-    pub fn contains(&self, name: &str) -> bool {
-        self.0.contains_key(name)
+    fn contains(&self, name: &str) -> bool {
+        self.variables.contains_key(name)
     }
 
-    pub fn get(&self, name: &str) -> Option<&Type> {
-        self.0.get(name)
+    fn get(&self, name: &str) -> Option<&Type> {
+        self.variables.get(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data_struct::parameter_struct::Parameter;
+
+    #[test]
+    fn test_type_mismatch_i32_string() {
+        let program = Program {
+            functions: vec![Function {
+                name: "main".to_string(),
+                params: vec![],
+                return_type: Type::I32,
+                body: vec![
+                    Statement::VariableDeclaration {
+                        name: "count".to_string(),
+                        var_type: Type::I32,
+                        value: Expression::StringLiteral("test".to_string()),
+                    },
+                    Statement::Return {
+                        value: Expression::IntegerLiteral(0),
+                    },
+                ],
+            }],
+        };
+
+        let result = type_check_program(&program);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Type mismatch for variable 'count'")
+        );
+    }
+
+    #[test]
+    fn test_valid_types() {
+        let program = Program {
+            functions: vec![Function {
+                name: "main".to_string(),
+                params: vec![],
+                return_type: Type::I32,
+                body: vec![
+                    Statement::VariableDeclaration {
+                        name: "count".to_string(),
+                        var_type: Type::I32,
+                        value: Expression::IntegerLiteral(42),
+                    },
+                    Statement::Return {
+                        value: Expression::VariableRef("count".to_string()),
+                    },
+                ],
+            }],
+        };
+
+        let result = type_check_program(&program);
+        assert!(result.is_ok());
     }
 }

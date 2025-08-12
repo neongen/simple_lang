@@ -1,15 +1,15 @@
-// Enhanced main.rs for simple_lang_demo_runner with control flow support
-use std::path::PathBuf;
-use std::env;
+// Enhanced main.rs for simple_lang_demo_runner with type checking support
 use simple_lang::{
-    parser::parse_program::parse_program,
-    evaluator::evaluate_program::evaluate_program,
+    evaluator::evaluate_program::evaluate_program, parser::parse_program::parse_program,
     source::read_source_file::read_source_file,
+    type_checker::type_check_program::type_check_program,
 };
+use std::env;
+use std::path::PathBuf;
 
 fn main() {
-    println!("=== simple_lang Demo Runner ===");
-    
+    println!("=== simple_lang Demo Runner with Type Checking ===");
+
     // Get current working directory
     let cwd = match env::current_dir() {
         Ok(path) => path,
@@ -27,7 +27,7 @@ fn main() {
     ];
 
     for program_path in demo_programs {
-        println!("{}" , "=".repeat(60));
+        println!("{}", "=".repeat(60));
         println!("Running: {}", program_path);
         println!("{}", "=".repeat(60));
 
@@ -46,6 +46,7 @@ fn main() {
         // Check if file exists
         if !full_path.exists() {
             println!("⚠️  Program file not found: {}", program_path);
+            continue;
         }
 
         // Read the source file
@@ -77,11 +78,26 @@ fn main() {
         println!("📊 Program info:");
         println!("   Functions: {}", program.functions.len());
         for func in &program.functions {
-            println!("   - {} (params: {}, return: {:?})", 
-                func.name, 
-                func.params.len(), 
+            println!(
+                "   - {} (params: {}, return: {:?})",
+                func.name,
+                func.params.len(),
                 func.return_type
             );
+        }
+
+        // Type check the program
+        println!("\n🔍 Type checking:");
+        println!("{}", "-".repeat(40));
+        match type_check_program(&program) {
+            Ok(()) => {
+                println!("✅ Type checking passed");
+            }
+            Err(e) => {
+                println!("❌ Type checking failed: {}", e);
+                println!("{}", "-".repeat(40));
+                continue; // Skip execution if type checking fails
+            }
         }
 
         println!("\n🚀 Execution output:");
@@ -92,7 +108,10 @@ fn main() {
             Ok(exit_code) => {
                 println!("{}", "-".repeat(40));
                 if exit_code == 0 {
-                    println!("✅ Program completed successfully (exit code: {})", exit_code);
+                    println!(
+                        "✅ Program completed successfully (exit code: {})",
+                        exit_code
+                    );
                 } else {
                     println!("✅ Program completed with exit code: {}", exit_code);
                 }
@@ -103,7 +122,6 @@ fn main() {
             }
         }
     }
-
     println!("{}", "=".repeat(60));
     println!("Demo runner completed!");
     println!("{}", "=".repeat(60));
