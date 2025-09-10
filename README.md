@@ -7,7 +7,7 @@
 
 ## 🌞 What is `simple_lang`?
 
-**`simple_lang`** is a simple, strict, statically-typed programming language designed and implemented via a GenAI-driven development workflow. 
+**`simple_lang`** is a simple, strict, statically-typed programming language built with GenAI workflow with minimal human intervention. 
 
 It supports:
 
